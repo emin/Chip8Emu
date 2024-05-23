@@ -9,6 +9,7 @@ struct HW
     const int memory_size = 4096;
     const int render_scaler = 24;
     uint8_t framebuffer[64 * 32] = {0};
+    uint8_t framebuffer_rendered[64 * 32] = {0};
     uint8_t key_press[16] = {0};
     uint8_t memory[4096] = {0}; 
 };

@@ -1,4 +1,4 @@
-#include "CPU.h"
+#include "cpu.h"
 #include <iostream>
 #include <cstring>
 #include <fstream>
@@ -21,6 +21,22 @@ uint8_t m_registers[16] = { 0 };
 std::chrono::high_resolution_clock::time_point m_last_time = std::chrono::high_resolution_clock::now();
 std::chrono::high_resolution_clock::time_point m_next_call = std::chrono::high_resolution_clock::now();
 
+
+void clear_screen()
+{
+	memset(m_hw->framebuffer, 0, m_hw->display_w * m_hw->display_h);
+}
+
+void cpu_reset()
+{
+	 m_PC = 0x200; 
+	 m_I = 0;
+ 	 m_stack.empty();
+	 m_delay_timer = 0;
+	 m_sound_timer = 0;
+	 memset(m_registers, 0, 16);
+	 clear_screen();
+}
 
 void cpu_init()
 {
@@ -50,20 +66,25 @@ void cpu_init()
 	memcpy(&m_hw->memory[0x050], &font_data, 80 * sizeof(uint8_t));
 	
 
-	size_t  rom_size = load_rom();
-
-	print_memory_region(0x200, 0x200 + rom_size);
 }
 
 
 
-
-
-
-size_t load_rom()
+void load_rom_from_bytes(std::vector<uint8_t> data)
 {
-	const char* filename = "C:\\Users\\emink\\Downloads\\IBMLogo.ch8";
-	// const char* filename = "C:\\Users\\emink\\Downloads\\chip8-roms-master\\demos\\Stars [Sergey Naydenov, 2010].ch8";
+	cpu_reset();
+
+	const size_t size = data.size();
+	for (int i = 0; i < size; ++i)
+	{
+		m_hw->memory[i + 0x200] = data[i];
+	}
+
+}
+
+
+void load_rom_from_file(const char* filename)
+{
 
 	std::ifstream file(filename, std::ios::binary | std::ios::ate);
 	if (!file) {
@@ -88,7 +109,6 @@ size_t load_rom()
 
 	std::cout << "ROM loaded successfully. Size: " << size << " bytes." << std::endl;
 
-	return size;
 }
 
 
@@ -135,11 +155,7 @@ void cpu_step()
 				if (ins == 0x00E0) 
 				{
 					// clear screen
-					const int len = m_hw->display_w * m_hw->display_h;
-					for (int i = 0; i < len; ++i)
-					{
-						m_hw->framebuffer[i] = 0;
-					}
+					clear_screen();
 				}
 				else if (ins == 0x00EE)
 				{
@@ -318,42 +334,39 @@ void cpu_step()
 				yloc = (ins & 0x00f0) >> 4;
 				n = (ins & 0x000f);
 
-				x = m_registers[xloc] % m_hw->display_w;
-				y = m_registers[yloc] % m_hw->display_h;
+				x = m_registers[xloc] & (m_hw->display_w-1);
+				y = m_registers[yloc] & (m_hw->display_h-1);
 
-				m_registers[0xF] = 0;
+				
+				val = 0;
 
 				for (int i = 0; i < n; ++i)
 				{
 					// vertical (n = height of the sprite)
 					if ((y + i) >= m_hw->display_h)
-						continue;
+						break;
 
 					b = m_hw->memory[m_I + i];
 					for (int k = 0; k < 8; ++k)
 					{
 						// horizontal (1 bit per pixel)
 
-						if ((x + k) >= m_hw->display_w)
-							continue;
+						if ((x + k) >= m_hw->display_w || (x+k) < 0)
+							break;
 
 						kidx = 7 - k;
-
-						if (((0x1 << kidx) & b) > 0 &&
-							m_hw->framebuffer[(x + k) + (y + i) * m_hw->display_w] == 1)
-						{
-							m_hw->framebuffer[(x + k) + (y + i) * m_hw->display_w] = 0;
-							m_registers[0xF] = 1;
-						}
-						else if (((0x1 << kidx) & b) > 0 && m_hw->framebuffer[(x + k) + (y + i) * m_hw->display_w] == 0)
-						{
-							m_hw->framebuffer[(x + k) + (y + i) * m_hw->display_w] = (uint8_t)1;
-						}
-
+						n4 = ((0x1 << kidx) & b) > 0 ? 1 : 0;
+						
+						if(val == 0)
+							val = n4 & m_hw->framebuffer[(x + k) + (y + i) * m_hw->display_w];
+						m_hw->framebuffer[(x + k) + (y + i) * m_hw->display_w] ^= n4;
 
 					}
 
 				}
+
+				m_registers[0xF] = val;
+
 				break;
 
 			case 0xE000: // EX9E and EXA1 (input check)
