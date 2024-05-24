@@ -147,8 +147,9 @@ void cpu_step()
 		// n represent nibble ( ins = n1 n2 n3 n4 )
 		uint16_t n1 = ins & 0xf000;
 		uint16_t loc, reg, val, x, y, n, xloc, yloc, regx, regy, n4;
-		uint8_t b, kidx, pressed, r;
+		uint8_t b, kidx, pressed, r, r2;
 		bool changed = false, block;
+		int pos;
 		switch (n1)
 		{
 			case 0x0000: 
@@ -262,14 +263,17 @@ void cpu_step()
 
 					case 6: // 8XY6
 
-					#if ORIGINAL_SHIFT
-						m_registers[regx] = m_registers[regy] >> 1;
-						m_registers[0xF] = m_registers[regy] & 0b00000001;
-					#else
-						m_registers[0xF] = m_registers[regx] & 0b00000001;
-						m_registers[regx] = m_registers[regx] >> 1;
-					#endif
-
+						if(m_hw->original_shift)
+						{
+							m_registers[0xF] = (m_registers[regy] & 0b00000001) > 0 ? 1 : 0;
+							m_registers[regx] = m_registers[regy] >> 1;
+						}else
+						{
+						
+							m_registers[0xF] = (m_registers[regx] & 0b00000001) > 0 ? 1 : 0;
+							m_registers[regx] = m_registers[regx] >> 1;
+						
+						}
 						break;
 
 					case 7: // 8XY7
@@ -283,15 +287,17 @@ void cpu_step()
 
 					case 0xE: // 8XYE
 
-				#if ORIGINAL_SHIFT
-						m_registers[regx] = m_registers[regy] << 1;
-						m_registers[0xF] = m_registers[regy] & 0b10000000;
-				#else
-						m_registers[0xF] = m_registers[regx] & 0b10000000;
-						m_registers[regx] = m_registers[regx] << 1;
-				#endif
+						if(m_hw->original_shift)
+						{
 
-						break;
+							m_registers[0xF] = (m_registers[regy] & 0b10000000) > 0 ? 1 : 0;
+							m_registers[regx] = m_registers[regy] << 1;
+						}else
+						{
+							m_registers[0xF] =  (m_registers[regx] & 0b10000000) > 0 ? 1 : 0;
+							m_registers[regx] = m_registers[regx] << 1;
+						}
+							break;
 				}
 
 
@@ -338,7 +344,7 @@ void cpu_step()
 				y = m_registers[yloc] & (m_hw->display_h-1);
 
 				
-				val = 0;
+				r2 = 0;
 
 				for (int i = 0; i < n; ++i)
 				{
@@ -354,18 +360,22 @@ void cpu_step()
 						if ((x + k) >= m_hw->display_w || (x+k) < 0)
 							break;
 
+						pos = ((x + k) + (y + i) * m_hw->display_w);
+
 						kidx = 7 - k;
-						n4 = ((0x1 << kidx) & b) > 0 ? 1 : 0;
+						r = ((0x1 << kidx) & b) > 0 ? 1 : 0;
 						
-						if(val == 0)
-							val = n4 & m_hw->framebuffer[(x + k) + (y + i) * m_hw->display_w];
-						m_hw->framebuffer[(x + k) + (y + i) * m_hw->display_w] ^= n4;
+						if(r2 == 0)
+							r2 = r & m_hw->framebuffer[pos];
+
+						m_hw->framebuffer[pos] ^= r;
+						
 
 					}
 
 				}
 
-				m_registers[0xF] = val;
+				m_registers[0xF] = r2;
 
 				break;
 
@@ -460,7 +470,7 @@ void cpu_step()
 						{
 							m_hw->memory[m_I + i] = m_registers[i];
 						}
-
+						m_I += regx;
 						break;
 
 					case 0x65: // FX65 load from memory
@@ -469,7 +479,7 @@ void cpu_step()
 						{
 							m_registers[i] = m_hw->memory[m_I + i];
 						}
-
+						m_I += regx;
 						break;
 				}
 		}

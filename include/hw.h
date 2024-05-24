@@ -5,7 +5,7 @@ struct HW
 {
     const int display_w = 64;
     const int display_h = 32;
-    const bool original_shift = true;
+    const bool original_shift = false;
     const int memory_size = 4096;
     const int render_scaler = 16;
     uint8_t framebuffer[64 * 32] = {0};
