@@ -18,6 +18,14 @@ target_link_libraries(Chip8Emu ${CMAKE_SOURCE_DIR}/external/raylib/lib/win64/ray
 target_link_libraries(Chip8Emu gdi32 winmm)
 endif()
 
+if(APPLE)
+target_link_libraries(Chip8Emu ${CMAKE_SOURCE_DIR}/external/raylib/lib/macos/libraylib.a
+"-framework IOKit"
+        "-framework Cocoa"
+        "-framework OpenGL"
+)
+endif()
+
 
 # Include directories
 target_include_directories(Chip8Emu PUBLIC "${PROJECT_BINARY_DIR}" include)
