@@ -9,13 +9,14 @@
 #include <thread>
 #include <stdint.h>
 #include <stack>
+#include "raylib.h"
+
 
 
 uint16_t m_PC = 0x200; // program counter
 uint16_t m_I = 0; // index register
 std::stack<uint16_t> m_stack;
 uint8_t m_delay_timer = 0;
-uint8_t m_sound_timer = 0;
 uint8_t m_registers[16] = { 0 };
 
 std::chrono::high_resolution_clock::time_point m_last_time = std::chrono::high_resolution_clock::now();
@@ -33,7 +34,7 @@ void cpu_reset()
 	 m_I = 0;
  	 m_stack.empty();
 	 m_delay_timer = 0;
-	 m_sound_timer = 0;
+	 m_hw->sound_timer = 0;
 	 memset(m_registers, 0, 16);
 	 clear_screen();
 }
@@ -65,7 +66,6 @@ void cpu_init()
 	// putting font data into interpreter space
 	memcpy(&m_hw->memory[0x050], &font_data, 80 * sizeof(uint8_t));
 	
-
 }
 
 
@@ -408,10 +408,11 @@ void cpu_step()
 						break;
 
 					case 0x18: // FX18
-						m_sound_timer = m_registers[regx];
+						m_hw->sound_timer = m_registers[regx];
 						break;
 
 					case 0x1E: // FX1E
+						m_registers[0xF] = (m_I + m_registers[regx]) > 0xfff ? 1 : 0;
 						m_I += m_registers[regx];
 						break;
 
@@ -502,9 +503,9 @@ void cpu_update_timer()
 		--m_delay_timer;
 	}
 
-	if (m_sound_timer > 0)
+	if (m_hw->sound_timer > 0)
 	{
-		--m_sound_timer;
+		--m_hw->sound_timer;
 	}
 }
 

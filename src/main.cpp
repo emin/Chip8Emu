@@ -6,7 +6,7 @@
 #include <chrono>
 #include <thread>
 #include "input.h"
-
+#include "sound.h"
 
 
 HW *m_hw;
@@ -18,6 +18,7 @@ int main()
     m_hw = &hw;
     gpu_init();
     cpu_init();
+    sound_init();
     
    
     const double frequency = 60.0;
@@ -35,13 +36,15 @@ int main()
         if (now >= next_call) {
             cpu_update_timer();
             gpu_render();
+            sound_update();
             next_call += std::chrono::duration_cast<std::chrono::steady_clock::duration>(period);
         }
 
     }
 
-   
-    gpu_close();
 
+    gpu_close();
+    sound_close();
+    
     return 0;
 }
